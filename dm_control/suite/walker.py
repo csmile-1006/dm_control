@@ -17,6 +17,8 @@
 
 import collections
 
+from dm_env import specs
+
 from dm_control import mujoco
 from dm_control.rl import control
 from dm_control.suite import base
@@ -99,56 +101,88 @@ class Physics(mujoco.Physics):
 
 
 class PlanarWalker(base.Task):
-  """A planar walker task."""
+    """A planar walker task."""
 
-  def __init__(self, move_speed, random=None):
-    """Initializes an instance of `PlanarWalker`.
+    def __init__(self, move_speed, random=None):
+        """Initializes an instance of `PlanarWalker`.
 
-    Args:
-      move_speed: A float. If this value is zero, reward is given simply for
-        standing up. Otherwise this specifies a target horizontal velocity for
-        the walking task.
-      random: Optional, either a `numpy.random.RandomState` instance, an
-        integer seed for creating a new `RandomState`, or None to select a seed
-        automatically (default).
-    """
-    self._move_speed = move_speed
-    super().__init__(random=random)
+        Args:
+          move_speed: A float. If this value is zero, reward is given simply for
+            standing up. Otherwise this specifies a target horizontal velocity for
+            the walking task.
+          random: Optional, either a `numpy.random.RandomState` instance, an
+            integer seed for creating a new `RandomState`, or None to select a seed
+            automatically (default).
+        """
+        self._move_speed = move_speed
+        super().__init__(random=random)
 
-  def initialize_episode(self, physics):
-    """Sets the state of the environment at the start of each episode.
+    def initialize_episode(self, physics):
+        """Sets the state of the environment at the start of each episode.
 
-    In 'standing' mode, use initial orientation and small velocities.
-    In 'random' mode, randomize joint angles and let fall to the floor.
+        In 'standing' mode, use initial orientation and small velocities.
+        In 'random' mode, randomize joint angles and let fall to the floor.
 
-    Args:
-      physics: An instance of `Physics`.
+        Args:
+          physics: An instance of `Physics`.
 
-    """
-    randomizers.randomize_limited_and_rotational_joints(physics, self.random)
-    super().initialize_episode(physics)
+        """
+        randomizers.randomize_limited_and_rotational_joints(physics, self.random)
+        super().initialize_episode(physics)
 
-  def get_observation(self, physics):
-    """Returns an observation of body orientations, height and velocites."""
-    obs = collections.OrderedDict()
-    obs['orientations'] = physics.orientations()
-    obs['height'] = physics.torso_height()
-    obs['velocity'] = physics.velocity()
-    return obs
+    def get_observation(self, physics):
+        """Returns an observation of body orientations, height and velocites."""
+        obs = collections.OrderedDict()
+        obs["orientations"] = physics.orientations()
+        obs["height"] = physics.torso_height()
+        obs["velocity"] = physics.velocity()
+        return obs
 
-  def get_reward(self, physics):
-    """Returns a reward to the agent."""
-    standing = rewards.tolerance(physics.torso_height(),
-                                 bounds=(_STAND_HEIGHT, float('inf')),
-                                 margin=_STAND_HEIGHT/2)
-    upright = (1 + physics.torso_upright()) / 2
-    stand_reward = (3*standing + upright) / 4
-    if self._move_speed == 0:
-      return stand_reward
-    else:
-      move_reward = rewards.tolerance(physics.horizontal_velocity(),
-                                      bounds=(self._move_speed, float('inf')),
-                                      margin=self._move_speed/2,
-                                      value_at_margin=0.5,
-                                      sigmoid='linear')
-      return stand_reward * (5*move_reward + 1) / 6
+    def get_reward(self, physics):
+        """Returns a reward to the agent."""
+        standing = rewards.tolerance(
+            physics.torso_height(), bounds=(_STAND_HEIGHT, float("inf")), margin=_STAND_HEIGHT / 2
+        )
+        upright = (1 + physics.torso_upright()) / 2
+        stand_reward = (3 * standing + upright) / 4
+        if self._move_speed == 0:
+            return stand_reward
+        else:
+            move_reward = rewards.tolerance(
+                physics.horizontal_velocity(),
+                bounds=(self._move_speed, float("inf")),
+                margin=self._move_speed / 2,
+                value_at_margin=0.5,
+                sigmoid="linear",
+            )
+            return stand_reward * (5 * move_reward + 1) / 6
+
+    def get_reward_spec(self):
+        return {
+            "standing": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="standing"),
+            "upright": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="upright"),
+            "stand_reward": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="stand_reward"),
+            "move_reward": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="move_reward"),
+        }
+    
+    def get_detailed_reward(self, physics):
+        standing = rewards.tolerance(
+            physics.torso_height(), bounds=(_STAND_HEIGHT, float("inf")), margin=_STAND_HEIGHT / 2
+        )
+        upright = (1 + physics.torso_upright()) / 2
+        stand_reward = (3 * standing + upright) / 4
+        move_reward = rewards.tolerance(
+            physics.horizontal_velocity(),
+            bounds=(self._move_speed, float("inf")),
+            margin=self._move_speed / 2,
+            value_at_margin=0.5,
+            sigmoid="linear",
+        )
+        return {
+            "standing": standing,
+            "upright": upright,
+            "stand_reward": stand_reward,
+            "move_reward": move_reward,
+        }
+
+

@@ -159,8 +159,8 @@ class PlanarWalker(base.Task):
 
     def get_reward_spec(self):
         return {
-            "standing": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="standing"),
-            "upright": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="upright"),
+            # "standing": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="standing"),
+            # "upright": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="upright"),
             "stand_reward": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="stand_reward"),
             "move_reward": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="move_reward"),
         }
@@ -179,8 +179,8 @@ class PlanarWalker(base.Task):
             sigmoid="linear",
         )
         return {
-            "standing": standing,
-            "upright": upright,
+            # "standing": standing,
+            # "upright": upright,
             "stand_reward": stand_reward,
             "move_reward": move_reward,
         }

@@ -17,6 +17,8 @@
 
 import collections
 
+from dm_env import specs
+
 from dm_control import mujoco
 from dm_control.rl import control
 from dm_control.suite import base
@@ -58,35 +60,46 @@ class Physics(mujoco.Physics):
 
 
 class Cheetah(base.Task):
-  """A `Task` to train a running Cheetah."""
+    """A `Task` to train a running Cheetah."""
 
-  def initialize_episode(self, physics):
-    """Sets the state of the environment at the start of each episode."""
-    # The indexing below assumes that all joints have a single DOF.
-    assert physics.model.nq == physics.model.njnt
-    is_limited = physics.model.jnt_limited == 1
-    lower, upper = physics.model.jnt_range[is_limited].T
-    physics.data.qpos[is_limited] = self.random.uniform(lower, upper)
+    def initialize_episode(self, physics):
+        """Sets the state of the environment at the start of each episode."""
+        # The indexing below assumes that all joints have a single DOF.
+        assert physics.model.nq == physics.model.njnt
+        is_limited = physics.model.jnt_limited == 1
+        lower, upper = physics.model.jnt_range[is_limited].T
+        physics.data.qpos[is_limited] = self.random.uniform(lower, upper)
 
-    # Stabilize the model before the actual simulation.
-    physics.step(nstep=200)
+        # Stabilize the model before the actual simulation.
+        physics.step(nstep=200)
 
-    physics.data.time = 0
-    self._timeout_progress = 0
-    super().initialize_episode(physics)
+        physics.data.time = 0
+        self._timeout_progress = 0
+        super().initialize_episode(physics)
 
-  def get_observation(self, physics):
-    """Returns an observation of the state, ignoring horizontal position."""
-    obs = collections.OrderedDict()
-    # Ignores horizontal position to maintain translational invariance.
-    obs['position'] = physics.data.qpos[1:].copy()
-    obs['velocity'] = physics.velocity()
-    return obs
+    def get_observation(self, physics):
+        """Returns an observation of the state, ignoring horizontal position."""
+        obs = collections.OrderedDict()
+        # Ignores horizontal position to maintain translational invariance.
+        obs["position"] = physics.data.qpos[1:].copy()
+        obs["velocity"] = physics.velocity()
+        return obs
 
-  def get_reward(self, physics):
-    """Returns a reward to the agent."""
-    return rewards.tolerance(physics.speed(),
-                             bounds=(_RUN_SPEED, float('inf')),
-                             margin=_RUN_SPEED,
-                             value_at_margin=0,
-                             sigmoid='linear')
+    def get_reward(self, physics):
+        """Returns a reward to the agent."""
+        return rewards.tolerance(
+            physics.speed(), bounds=(_RUN_SPEED, float("inf")), margin=_RUN_SPEED, value_at_margin=0, sigmoid="linear"
+        )
+
+    def get_reward_spec(self):
+        return {
+            "speed": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="speed"),
+        }
+
+    def get_detailed_reward(self, physics):
+        speed_reward = rewards.tolerance(
+            physics.speed(), bounds=(_RUN_SPEED, float("inf")), margin=_RUN_SPEED, value_at_margin=0, sigmoid="linear"
+        )
+        return {
+            "speed": speed_reward,
+        }

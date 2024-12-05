@@ -159,10 +159,9 @@ class PlanarWalker(base.Task):
 
     def get_reward_spec(self):
         return {
-            # "standing": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="standing"),
-            # "upright": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="upright"),
-            "stand_reward": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="stand_reward"),
-            "move_reward": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="move_reward"),
+            "standing": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="standing"),
+            "upright": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="upright"),
+            "move": specs.BoundedArray(shape=(), dtype=float, minimum=1e-10, maximum=1, name="move"),
         }
     
     def get_detailed_reward(self, physics):
@@ -170,7 +169,6 @@ class PlanarWalker(base.Task):
             physics.torso_height(), bounds=(_STAND_HEIGHT, float("inf")), margin=_STAND_HEIGHT / 2
         )
         upright = (1 + physics.torso_upright()) / 2
-        stand_reward = (3 * standing + upright) / 4
         move_reward = rewards.tolerance(
             physics.horizontal_velocity(),
             bounds=(self._move_speed, float("inf")),
@@ -178,11 +176,13 @@ class PlanarWalker(base.Task):
             value_at_margin=0.5,
             sigmoid="linear",
         )
+        # stand_reward = (3 * standing + upright) / 4
         return {
-            # "standing": standing,
-            # "upright": upright,
-            "stand_reward": stand_reward,
-            "move_reward": move_reward,
+            "standing": standing,
+            "upright": upright,
+            "move": move_reward,
+            # "stand_reward": stand_reward,
+            # "move_reward": move_reward,
         }
 
 
